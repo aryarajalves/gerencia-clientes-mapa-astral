@@ -10,7 +10,7 @@ function ClienteCard({ cliente, isExpanded, onToggle, onRefresh }) {
     const [showModal, setShowModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [loadingMapa, setLoadingMapa] = useState(false);
-
+    const [enviandoMensagem, setEnviandoMensagem] = useState(false);
 
     // Persistência da animação ao recarregar a página e Polling
     React.useEffect(() => {
@@ -59,18 +59,28 @@ function ClienteCard({ cliente, isExpanded, onToggle, onRefresh }) {
         addToQueue();
         try {
             await clienteService.gerarMapa(cliente.id);
-            // Sucesso no disparo! 
-            // NÃO paramos o loading aqui. Deixamos o Polling (useEffect) 
-            // verificar até o link aparecer.
             if (onRefresh) onRefresh();
         } catch (error) {
             console.error(error);
             alert('Interferência Cósmica: ' + (error.response?.data?.detail || 'Erro ao conectar.'));
-            // Se deu erro no disparo, aí sim paramos tudo
             setLoadingMapa(false);
             removeFromQueue();
         }
-        // Removi o finally que forçava o stop do loading
+    };
+
+    const handleEnviarMensagem = async (formData) => {
+        setEnviandoMensagem(true);
+        try {
+            await clienteService.enviarMensagem(formData);
+            // Mensagem enviada com sucesso (após o delay do backend)
+            // Atualiza status se necessário
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            console.error(err);
+            alert('Erro ao enviar mensagem: ' + (err.response?.data?.detail || err.message));
+        } finally {
+            setEnviandoMensagem(false);
+        }
     };
 
     const formatNumero = (numero) => {
@@ -189,6 +199,24 @@ function ClienteCard({ cliente, isExpanded, onToggle, onRefresh }) {
                                 <span className="cliente-preview-item entrega-badge" title={cliente.ja_entregou_mapa ? "Mapa JÁ Entregue" : "Mapa AINDA NÃO Entregue"}>
                                     📨 ENTREGUE {cliente.ja_entregou_mapa ? '✅' : '❌'}
                                 </span>
+                                {cliente.nao_entregou_e_passou_2_horas && !cliente.ja_entregou_mapa && (
+                                    <span className="cliente-preview-item" title="Atrasado há mais de 2 horas" style={{
+                                        color: '#ef4444',
+                                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                                        background: 'rgba(239, 68, 68, 0.1)'
+                                    }}>
+                                        ⚠️ ATRASADO
+                                    </span>
+                                )}
+                                {enviandoMensagem && (
+                                    <span className="cliente-preview-item" title="Enviando mensagem..." style={{
+                                        color: '#3b82f6',
+                                        borderColor: '#3b82f6',
+                                        background: 'rgba(59, 130, 246, 0.1)'
+                                    }}>
+                                        🚀 ENVIANDO <Loader2 size={12} className="spin-anim" style={{ marginLeft: 4 }} />
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -344,6 +372,7 @@ function ClienteCard({ cliente, isExpanded, onToggle, onRefresh }) {
                     <MensagemModal
                         cliente={cliente}
                         onClose={() => setShowModal(false)}
+                        onSend={handleEnviarMensagem}
                     />
                 </Suspense>
             )}

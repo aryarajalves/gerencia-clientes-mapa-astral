@@ -112,6 +112,7 @@ class BaserowClient:
             "ja_entregou_mapa": row.get("Ja Entregou Mapa Astral", False),
             "ultimo_horario_mensagens": row.get("Ultimo Horario Que Trocamos Mensagens"),
             "e_um_cliente_real": row.get("E Um Cliente Real", True),
+            "nao_entregou_e_passou_2_horas": row.get("Nao Entregou e Passou 2 Horas", False),
 
             # Campos extras mapeados apenas se estiverem presentes (vindos do merge)
             "area_foco": row.get("Area Foco"),
@@ -122,7 +123,7 @@ class BaserowClient:
             "pais": row.get("Pais"),
             "motivacao": row.get("O que te motivou a buscar seu Mapa Astral agora"),
             "mudanca_vida": row.get("Se pudesse mudar uma coisa na sua vida hoje, o que seria?"),
-            "expectativa": row.get("O que voce espera descobrir atraves do seu Mapa Astral?")
+            "expectativa": row.get("O que você espera descobrir através do seu Mapa Astral?")
         }
 
     async def _fetch_info_data(self) -> Dict[str, Dict[str, Any]]:
@@ -131,11 +132,12 @@ class BaserowClient:
             return {}
             
         async with httpx.AsyncClient() as client:
-            # Paginacao pode ser necessaria se for muito grande, mas vamos simplificar
+            # Paginacao simplificada com limite seguro (Baserow max size ~200)
+            # TODO: Implementar paginacao real (while next) se passar de 200 registros na tabela Info
             response = await client.get(
                 f"{self.base_url}/api/database/rows/table/{self.table_id_info}/",
                 headers=self.headers,
-                params={"user_field_names": "true", "size": 200} # Limite seguro para MVP
+                params={"user_field_names": "true", "size": 200}
             )
             
             if response.status_code != 200:
@@ -149,16 +151,29 @@ class BaserowClient:
                 if key:
                     info_map[key] = row
             
+            # print(f"DEBUG: Info Map carregado com {len(info_map)} itens")
             return info_map
 
     async def _invalidate_cache(self):
-        """Invalidate the clients list cache"""
+        """Invalidate the clients list cache (Redis + Local File)"""
+        import os
+        cache_file = "clientes_cache.json"
+
+        # 1. Redis
         if self.redis:
             try:
                 await self.redis.delete("clientes_list_v2")
-                logger.info("Cache invalidado com sucesso")
+                logger.info("Cache Redis invalidado")
             except Exception as e:
-                logger.error(f"Erro ao invalidar cache: {e}")
+                logger.error(f"Erro ao invalidar cache Redis: {e}")
+        
+        # 2. Arquivo Local
+        if os.path.exists(cache_file):
+            try:
+                os.remove(cache_file)
+                print("Cache Local (Arquivo) invalidado com sucesso.")
+            except Exception as e:
+                print(f"Erro ao remover cache local: {e}")
 
     def _merge_info(self, cliente_row: Dict[str, Any], info_map: Dict[str, Any]):
         """Mescla dados da tabela info no cliente se houver match de numero"""
@@ -166,9 +181,6 @@ class BaserowClient:
             return
             
         key = self._get_search_key(cliente_row.get("Numero"))
-        if not key:
-            return
-        
         info_row = info_map.get(key)
         if info_row:
             # Copia campos relevantes
@@ -181,7 +193,7 @@ class BaserowClient:
                 "Pais", 
                 "O que te motivou a buscar seu Mapa Astral agora",
                 "Se pudesse mudar uma coisa na sua vida hoje, o que seria?",
-                "O que voce espera descobrir atraves do seu Mapa Astral?"
+                "O que você espera descobrir através do seu Mapa Astral?"
             ]
             for field in fields_to_copy:
                 if field in info_row:
@@ -194,32 +206,46 @@ class BaserowClient:
         reraise=True
     )
     async def listar_clientes(self, skip_cache: bool = False) -> List[Cliente]:
-        """Lista todos os clientes (com Cache Redis)"""
+        """Lista todos os clientes (com Cache Redis ou Arquivo Local)"""
         self._check_configured()
+        import time
+        import os
         
+        cache_file = "clientes_cache.json"
+
         # 0. Se pediu para pular cache
         if skip_cache:
             print("Skip Cache solicitado: Buscando fresco...")
         
-        # 1. Tenta buscar do Cache (se nao for skip)
+        # 1. Tenta buscar do Cache (Redis)
         elif self.redis:
             try:
                 cached_data = await self.redis.get("clientes_list_v2")
                 if cached_data:
-                    # Se achou no cache, desserializa e retorna
-                    print("Cache Hit: Retornando clientes do Redis")
+                    print("Cache Hit: Redis")
                     raw_list = json.loads(cached_data)
                     return [Cliente(**item) for item in raw_list]
             except Exception as e:
                 print(f"Erro ao ler do Redis: {e}")
         
-        # Se nao achou no cache ou pulou, busca do Baserow
-        print("Cache Miss ou Skip: Buscando do Baserow...")
+        # 2. Tenta buscar do Cache (Arquivo Local - Persistente)
+        elif not skip_cache:
+            if os.path.exists(cache_file):
+                try:
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        cached = json.load(f)
+                        # Verifica validade (10 minutos = 600s)
+                        if cached.get("expires", 0) > time.time():
+                            print("Cache Hit: Arquivo Local (Rápido!) 🚀")
+                            return [Cliente(**item) for item in cached["data"]]
+                except Exception as e:
+                    print(f"Erro ao ler cache local: {e}")
         
-        # 2. Se nao achou, busca do Baserow (Em Paralelo)
+        # Se nao achou em nenhum cache, busca do Baserow
+        print("Cache Miss: Buscando do Baserow (Pode demorar)...")
+        
         try:
              async with httpx.AsyncClient() as client:
-                # Dispara buscar tabela principal e tabela info ao mesmo tempo
                 task_main = client.get(
                     self._get_table_url(),
                     headers=self.headers,
@@ -227,13 +253,11 @@ class BaserowClient:
                 )
                 task_info = self._fetch_info_data()
 
-                # Aguarda ambos
                 response_main, info_map = await asyncio.gather(task_main, task_info)
                 
                 response_main.raise_for_status()
                 data = response_main.json()
                 results = data.get("results", [])
-                print(f"DEBUG BASEROW: Encontrados {len(results)} clientes na tabela principal.")
 
         except Exception as e:
             print(f"Erro na busca do Baserow: {e}")
@@ -242,25 +266,31 @@ class BaserowClient:
         clientes_para_cache = []
         clientes_objetos = []
 
-        for row in data.get("results", []):
-            # Tenta enriquecer com dados da tabela secundaria
+        for row in results:
             self._merge_info(row, info_map)
-            
             cliente_data = self._map_from_baserow_fields(row)
             
-            # Prepara para cache (dict) e retorno (Objeto)
             clientes_para_cache.append(cliente_data)
             clientes_objetos.append(Cliente(**cliente_data))
             
-        print(f"Retornando {len(clientes_objetos)} clientes.")
-        
-        # 3. Salva no Cache (TTL 5 min = 300s)
+        # 3. Salva no Cache
+        # Redis
         if self.redis:
             try:
                 await self.redis.set("clientes_list_v2", json.dumps(clientes_para_cache, default=str), ex=300)
-                print(f"Clientes salvos no Redis (TTL 300s)")
             except Exception as e:
                 print(f"Erro ao salvar no Redis: {e}")
+        
+        # Arquivo Local (Salva em JSON para persistir mesmo reiniciando)
+        try:
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump({
+                    "data": [c.model_dump() for c in clientes_objetos], # Serializa models
+                    "expires": time.time() + 600 # 10 minutos
+                }, f, default=str)
+            print("Clientes salvos no arquivo de cache local (TTL 600s)")
+        except Exception as e:
+            print(f"Erro ao salvar cache local: {e}")
         
         return clientes_objetos
     
@@ -324,7 +354,7 @@ class BaserowClient:
             "pais": "Pais",
             "motivacao": "O que te motivou a buscar seu Mapa Astral agora",
             "mudanca_vida": "Se pudesse mudar uma coisa na sua vida hoje, o que seria?",
-            "expectativa": "O que voce espera descobrir atraves do seu Mapa Astral?"
+            "expectativa": "O que você espera descobrir através do seu Mapa Astral?"
         }
         for k, v in data.items():
             # Aceitamos strings vazias para permitir limpar o campo

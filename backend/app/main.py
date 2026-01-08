@@ -47,6 +47,9 @@ async def startup_event():
 
 # Configurar CORS
 origins = settings.get_cors_origins()
+# Adiciona porta 5174 manualmente caso backend esteja rodando em porta alternativa ou testes
+origins.append("http://localhost:5174") 
+
 print(f"ð CORS Origins configurados: {origins}")
 
 app.add_middleware(
@@ -136,6 +139,9 @@ class MemoryUploadFile:
     async def read(self):
         return self.content
 
+    async def seek(self, position):
+        pass # Simula seek para compatibilidade com a lÃ³gica de reset no client
+
 # Endpoints Especiais
 
 @app.post("/api/clientes/enviar-mensagem", tags=["Mensagens"])
@@ -174,13 +180,35 @@ async def enviar_mensagem(
 
         # Se nÃ£o tem arquivo fÃ­sico mas tem link, baixa o PDF
         if not arquivo_para_enviar and link_pdf:
+            # Tratamento para Google Docs (vÃira HTML se nÃ£o usar /export?format=pdf) asd 
+            if "docs.google.com/document/d/" in link_pdf:
+                if "/edit" in link_pdf:
+                    link_pdf = link_pdf.split("/edit")[0]
+                if not "export?format=pdf" in link_pdf:
+                    # Garante que nÃ£o tenha barra no final antes de adicionar
+                    link_pdf = link_pdf.rstrip("/") + "/export?format=pdf"
+            
             print(f"Baixando PDF via URL: {link_pdf}")
-            async with httpx.AsyncClient() as client:
-                r = await client.get(link_pdf, timeout=30.0)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+            async with httpx.AsyncClient(follow_redirects=True) as client:
+                r = await client.get(link_pdf, headers=headers, timeout=60.0)
+                print(f"DEBUG: Download Status: {r.status_code}")
+                print(f"DEBUG: Content-Type recebido: {r.headers.get('content-type')}")
+                print(f"DEBUG: Primeiros 100 bytes: {r.content[:100]}")
+                
                 if r.status_code == 200:
-                    arquivo_para_enviar = MemoryUploadFile("mapa_astral.pdf", r.content, "application/pdf")
+                    content = r.content
+                    if not content.startswith(b'%PDF'):
+                         print("⚠️ ATENÇÃO: O arquivo baixado NÃO parece ser um PDF válido (Header incorreto).")
+                         # Não vou barrar, mas vou avisar no log.
+                         # Pode ser que o Google entregue HTML pedindo login.
+                    
+                    arquivo_para_enviar = MemoryUploadFile("mapa_astral.pdf", content, "application/pdf")
+                    print(f"✅ PDF Baixado com sucesso. Tamanho: {len(content)} bytes.")
                 else:
-                    print(f"Falha ao baixar PDF do link: {r.status_code}")
+                    print(f"❌ Falha ao baixar PDF do link: {r.status_code}")
 
         if arquivo_para_enviar:
             print(f"Enviando arquivo via Chatwoot para {nome} ({clean_numero}) com delay {delay}")
@@ -248,7 +276,8 @@ async def health_check():
     """Verifica se a API estÃ¡ online."""
     return {"status": "ok"}
 
-# Reload Trigger
+# Reload Trigger to refresh env vars
+
 
 
 @app.post("/api/login", response_model=Token, tags=["Autenticação"])

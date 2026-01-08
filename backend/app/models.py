@@ -13,7 +13,8 @@ class ClienteBase(BaseModel):
     link_pdf_mapa_astral: Optional[str] = Field(None, description="Link do PDF do Mapa Astral", examples=["https://example.com/mapa.pdf"])
     ja_entregou_mapa: Optional[bool] = Field(default=False, description="Indica se o mapa jÃ¡ foi entregue", examples=[False])
     ultimo_horario_mensagens: Optional[str] = Field(None, description="Ãltimo horÃ¡rio que trocamos mensagens", examples=["2023-10-27T14:30:00"])
-    e_um_cliente_real: Optional[bool] = Field(default=True, description="Indica se Ã© um cliente real", examples=[True])
+    e_um_cliente_real: Optional[bool] = Field(default=True, description="Indica se é um cliente real", examples=[True])
+    nao_entregou_e_passou_2_horas: Optional[bool] = Field(default=False, description="Passou de 2 horas e não entregou", examples=[False])
     
     # Campos da tabela "Info"
     area_foco: Optional[str] = Field(None, description="Ãrea de Foco", examples=["Amor e Relacionamento"])

@@ -35,6 +35,7 @@ function Dashboard() {
         { valor: 'janela_24h_sim', label: '⏰ Janela 24H Ativa' },
         { valor: 'mapa_pronto', label: '📄 Mapa Gerado' },
         { valor: 'mapa_entregue', label: '📨 Mapa Entregue' },
+        { valor: 'mapa_atrasado', label: '⚠️ Atrasados (>2h)' },
         { valor: 'janela_24h_nao', label: '⏱️ Fora da Janela 24H' }
     ];
 
@@ -48,7 +49,17 @@ function Dashboard() {
     ];
 
     useEffect(() => {
-        carregarClientes();
+        // Carrega forçando atualização do cache (skipCache = true) ao montar o componente (F5/Reload)
+        carregarClientes(false, true);
+
+        // Configura Polling de 10 segundos para atualização automática sem recarregar
+        const intervalId = setInterval(() => {
+            // silent=true (sem spinner), skipCache=true (dados frescos)
+            carregarClientes(true, true);
+        }, 10000);
+
+        // Limpa o intervalo ao desmontar
+        return () => clearInterval(intervalId);
     }, []);
 
     useEffect(() => {
@@ -138,6 +149,14 @@ function Dashboard() {
                 return !c.area_foco || !c.data_nascimento || !c.horario_nascimento ||
                     !c.cidade || !c.estado || !c.pais ||
                     !c.motivacao || !c.mudanca_vida || !c.expectativa;
+            });
+        } else if (filtroTipo === 'mapa_atrasado') {
+            resultado = resultado.filter(c => {
+                // Regra: "todos os leadss que ainda não receberam o mapa, mas já passou das 2 horas"
+                // No backend, o worker marca 'nao_entregou_e_passou_2_horas' = True
+                // Vamos usar essa flag que vem do Baserow
+                // E garantimos que apenas CLIENTES REAIS apareçam aqui, conforme regra de negocio
+                return c.nao_entregou_e_passou_2_horas === true && !c.ja_entregou_mapa && c.e_um_cliente_real;
             });
         } else if (filtroTipo === 'cadastro_completo') {
             resultado = resultado.filter(c => {

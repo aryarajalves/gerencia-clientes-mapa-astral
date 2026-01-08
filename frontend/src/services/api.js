@@ -78,6 +78,18 @@ export const clienteService = {
         const response = await api.get('/whatsapp/templates');
         return response.data;
     },
+
+    enviarMensagem: async (formData) => {
+        // O axios detecta FormData e define multipart/form-data automaticamente se não forçar,
+        // mas é bom garantir ou deixar o navegador definir o boundary.
+        // Geralmente só passar o formData já funciona.
+        const response = await api.post('/clientes/enviar-mensagem', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            }
+        });
+        return response.data;
+    },
 };
 
 // Health Check

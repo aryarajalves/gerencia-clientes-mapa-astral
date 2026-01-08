@@ -173,6 +173,7 @@ class ChatwootClient:
                 message_url = f"{self.api_url}/api/v1/accounts/{self.account_id}/conversations/{conversation_id}/messages"
                 headers = {"api_access_token": self.api_token}
                 
+                await arquivo.seek(0) # Reset ponteiro se foi lido antes
                 conteudo = await arquivo.read()
                 files = {'attachments[]': (arquivo.filename, conteudo, arquivo.content_type)}
                 
