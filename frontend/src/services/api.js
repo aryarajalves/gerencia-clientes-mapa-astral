@@ -11,6 +11,22 @@ const api = axios.create({
     },
 });
 
+// Interceptor para tratar erros 401 (Token Expirado)
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            // Token expirou ou é inválido
+            localStorage.removeItem('@App:token');
+            localStorage.removeItem('@App:user');
+
+            // Redireciona para login e recarrega para limpar estados
+            window.location.href = '/';
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Clientes
 export const clienteService = {
     listarTodos: async (skipCache = false) => {

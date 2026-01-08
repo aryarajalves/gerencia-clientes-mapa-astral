@@ -1214,3 +1214,7 @@
 2026-01-08 05:09:16,469 - INFO - HTTP Request: GET https://planilhaandrieli.jords.site/api/database/rows/table/673/?user_field_names=true "HTTP/1.1 200 OK"
 2026-01-08 05:09:16,925 - INFO - HTTP Request: GET https://planilhaandrieli.jords.site/api/database/rows/table/677/?user_field_names=true&size=200 "HTTP/1.1 200 OK"
 2026-01-08 05:09:16,954 - INFO - HTTP Request: GET https://planilhaandrieli.jords.site/api/database/rows/table/673/?user_field_names=true "HTTP/1.1 200 OK"
+2026-01-08 05:16:37,656 - INFO - HTTP Request: GET https://planilhaandrieli.jords.site/api/database/rows/table/677/?user_field_names=true&size=200 "HTTP/1.1 200 OK"
+2026-01-08 05:16:37,658 - INFO - HTTP Request: GET https://planilhaandrieli.jords.site/api/database/rows/table/673/?user_field_names=true "HTTP/1.1 200 OK"
+2026-01-08 05:16:38,047 - INFO - HTTP Request: GET https://planilhaandrieli.jords.site/api/database/rows/table/677/?user_field_names=true&size=200 "HTTP/1.1 200 OK"
+2026-01-08 05:16:38,057 - INFO - HTTP Request: GET https://planilhaandrieli.jords.site/api/database/rows/table/673/?user_field_names=true "HTTP/1.1 200 OK"

@@ -38,11 +38,12 @@ Este documento lista as melhorias planejadas para elevar o nível de segurança,
     - Criar projeto no Sentry.io (Ação Necessária do Usuário).
     - Integrar SDK no Backend (FastAPI) (Configurado, requer `SENTRY_DSN` no .env).
     - Integrar SDK no Frontend (React) (Configurado, requer `VITE_SENTRY_DSN` no .env).
-- [ ] **Pipeline de CI/CD (GitHub Actions)**
-    - Criar workflow `.github/workflows/deploy.yml`.
+- [x] **Pipeline de CI/CD (GitHub Actions)**
+    - Criar workflow `.github/workflows/deploy.yml` (Criado e enviado para o GitHub).
     - Automatizar build e push das imagens Docker ao fazer commit na `main`.
 - [x] **Documentação da API (Swagger/Redoc)**
     - Melhorar descrições e exemplos nos modelos Pydantic para que o `/docs` seja uma documentação útil para outros desenvolvedores.
+    - (API já está autocumentada pelo FastAPI, mas podemos adicionar exemplos melhores no futuro).
 
 ## 🧪 Testes
 
