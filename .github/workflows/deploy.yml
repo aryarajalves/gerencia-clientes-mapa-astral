@@ -24,7 +24,9 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: aryarajalves/gestao-clientes-mapa-astral:backend-latest
+          tags: |
+            aryarajalves/gestao-clientes-mapa-astral:backend-latest
+            aryarajalves/gestao-clientes-mapa-astral:backend-v${{ github.run_number }}
 
       - name: Build and Push Frontend
         uses: docker/build-push-action@v5
@@ -35,4 +37,6 @@ jobs:
           build-args: |
             VITE_API_URL=${{ secrets.VITE_API_URL }}
             VITE_SENTRY_DSN=${{ secrets.VITE_SENTRY_DSN }}
-          tags: aryarajalves/gestao-clientes-mapa-astral:frontend-latest
+          tags: |
+            aryarajalves/gestao-clientes-mapa-astral:frontend-latest
+            aryarajalves/gestao-clientes-mapa-astral:frontend-v${{ github.run_number }}
