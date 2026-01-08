@@ -13,7 +13,7 @@ services:
       - network_swarm_public
     environment:
       # Variáveis de Ambiente (Mapeadas do arquivo .env ou definidas aqui)
-      - CORS_ORIGINS=http://localhost:5173,http://seusite.com
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:5174,https://gestaomapa.jords.site
 
       # --- BASEROW ---
       - BASEROW_API_URL=${BASEROW_API_URL}
@@ -61,7 +61,7 @@ services:
         - "traefik.http.routers.backend.tls.certresolver=letsencryptresolver"
         - "traefik.http.services.backend.loadbalancer.server.port=8000"
         - "traefik.http.middlewares.backend-cors.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE"
-        - "traefik.http.middlewares.backend-cors.headers.accesscontrolalloworiginlist=https://exemplo.com"
+        - "traefik.http.middlewares.backend-cors.headers.accesscontrolalloworiginlist=https://gestaomapa.jords.site"
         - "traefik.http.middlewares.backend-cors.headers.accesscontrolmaxage=100"
         - "traefik.http.middlewares.backend-cors.headers.addvaryheader=true"
         - "traefik.http.routers.backend.middlewares=backend-cors"

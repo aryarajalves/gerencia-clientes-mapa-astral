@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     
     # Server
     backend_port: int = 8000
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:5174,https://gestaomapa.jords.site"
 
     # Chatwoot
     chatwoot_api_url: str = "https://app.chatwoot.com"
