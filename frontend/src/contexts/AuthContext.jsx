@@ -41,7 +41,21 @@ export const AuthProvider = ({ children }) => {
             }
         } catch (error) {
             console.error("Erro no login:", error);
-            const message = error.response?.data?.detail || 'Falha ao realizar login';
+            let message = 'Falha ao realizar login';
+
+            if (error.response?.data?.detail) {
+                message = error.response.data.detail;
+            } else if (error.response?.data?.message) {
+                message = error.response.data.message;
+            } else if (error.message) {
+                message = error.message;
+            }
+
+            // Se for um objeto (como erro de validação), converte para string
+            if (typeof message === 'object') {
+                message = JSON.stringify(message);
+            }
+
             throw new Error(message);
         }
     };
